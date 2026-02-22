@@ -12,12 +12,18 @@ let supabaseClient: any = null;
 function getSupabase() {
   if (!supabaseClient) {
     const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
+    // Use SERVICE_ROLE_KEY to bypass RLS in the backend
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
     if (!url || !key) {
-      console.warn("Missing SUPABASE_URL or SUPABASE_ANON_KEY. Admin features will not work.");
+      console.warn("Missing SUPABASE_URL or Supabase Keys. Admin features will not work.");
       return null;
     }
-    supabaseClient = createClient(url, key);
+    supabaseClient = createClient(url, key, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
   }
   return supabaseClient;
 }
