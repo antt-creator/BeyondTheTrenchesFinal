@@ -5,7 +5,6 @@ import * as z from 'zod';
 import { motion, AnimatePresence } from 'motion/react';
 import { COUNTRIES, CountryCode } from '../constants';
 import { Upload, CheckCircle2, Loader2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 
 const orderSchema = z.object({
   name: z.string().min(2, 'Name is too short'),
@@ -65,26 +64,24 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
     setSubmitError(null);
     
     try {
-      // We omit 'id' and 'date' to let Supabase use its default values (gen_random_uuid() and now())
-      const { data: insertedData, error } = await supabase
-        .from('orders')
-        .insert([
-          {
-            name: data.name,
-            phone: data.phone,
-            address: data.address,
-            qty: data.qty,
-            paymentType: data.paymentType,
-            receiptUrl: receiptPreview || null,
-            notes: data.notes || null
-          }
-        ])
-        .select();
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          receiptUrl: receiptPreview || null,
+        }),
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details || 'Failed to submit order');
+      }
       
-      const generatedId = insertedData && insertedData[0] ? insertedData[0].id : "Success";
-      onSuccess(generatedId);
+      onSuccess(result.orderId || "SUCCESS");
     } catch (error: any) {
       console.error('Order submission failed:', error);
       setSubmitError(`Order တင်ခြင်း မအောင်မြင်ပါ။ ကျေးဇူးပြု၍ ပြန်လည်ကြိုးစားပေးပါ။ (${error.message || error})`);
