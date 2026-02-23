@@ -5,6 +5,8 @@ import * as z from 'zod';
 import { motion, AnimatePresence } from 'motion/react';
 import { COUNTRIES, CountryCode } from '../constants';
 import { Upload, CheckCircle2, Loader2 } from 'lucide-react';
+// ၁။ Supabase client ကို import လုပ်ပါ (လမ်းကြောင်း မှန်အောင် စစ်ပေးပါ)
+import { supabase } from '../lib/supabase'; 
 
 const orderSchema = z.object({
   name: z.string().min(2, 'Name is too short'),
@@ -36,7 +38,7 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isDirty, isValid },
+    formState: { errors },
   } = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
     mode: 'onBlur',
@@ -59,32 +61,34 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
     }
   };
 
+  // ၂။ ပြင်ဆင်ထားသော onSubmit function
   const onSubmit = async (data: OrderFormData) => {
     setIsSubmitting(true);
     setSubmitError(null);
     
     try {
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...data,
-          receiptUrl: receiptPreview || null,
-        }),
-      });
+      // API route အစား Supabase ထဲ တိုက်ရိုက် Insert လုပ်မယ်
+      const { error } = await supabase
+        .from('orders')
+        .insert([
+          {
+            name: data.name,
+            phone: data.phone,
+            address: data.address,
+            qty: data.qty,
+            paymentType: data.paymentType, // Database column နာမည်နဲ့ ကိုက်အောင် စစ်ပါ
+            notes: data.notes || null,
+            receiptUrl: receiptPreview || null,
+            country_code: countryCode // ဘယ်နိုင်ငံက မှာလဲဆိုတာပါ သိမ်းချင်ရင် ထည့်နိုင်ပါတယ်
+          }
+        ]);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || result.details || 'Failed to submit order');
-      }
+      if (error) throw error;
       
-      onSuccess(result.orderId || "SUCCESS");
+      onSuccess("SUCCESS");
     } catch (error: any) {
       console.error('Order submission failed:', error);
-      setSubmitError(`Order တင်ခြင်း မအောင်မြင်ပါ။ ကျေးဇူးပြု၍ ပြန်လည်ကြိုးစားပေးပါ။ (${error.message || error})`);
+      setSubmitError(`Order တင်ခြင်း မအောင်မြင်ပါ။ (${error.message || "Database connection error"})`);
     } finally {
       setIsSubmitting(false);
     }
@@ -92,6 +96,7 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* အောက်က UI ပိုင်းတွေက အရင်အတိုင်းပဲမို့လို့ မပြောင်းလဲပါဘူး */}
       {Object.keys(errors).length > 0 && (
         <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
           <p className="text-xs text-red-600 font-medium">ကျေးဇူးပြု၍ လိုအပ်သော အချက်အလက်များကို မှန်ကန်စွာ ဖြည့်စွက်ပေးပါရန်။</p>
@@ -103,6 +108,8 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
           <p className="text-xs text-red-600 font-medium">{submitError}</p>
         </div>
       )}
+      
+      {/* ... (ကျန်တဲ့ UI code တွေက အတူတူပါပဲ) ... */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-black/50 mb-2">Full Name</label>
@@ -112,7 +119,7 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
 
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-black/50 mb-2">Phone Number</label>
-          <input {...register('phone')} className="input-field" placeholder="တိကျမှန်ကန်စွာဖြည့်ပေးပါရန်" />
+          <input {...register('phone')} className="input-field" placeholder="တိကျမှန်ကန်စွာဖြည့်ပေးပါရန်" />
           {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
         </div>
       </div>
@@ -139,7 +146,7 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
           <div className="flex flex-col gap-2 mt-2">
             <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border border-black/5 hover:bg-black/5 transition-colors">
               <input type="radio" value="COD" {...register('paymentType')} className="accent-olive" />
-              <span className="text-sm">အိမ်ရောက်ငွေချေစနစ်ဖြင့် မှာယူမည်</span>
+              <span className="text-sm">အိမ်ရောက်ငွေချေစနစ်ဖြင့် မှာယူမည်</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border border-black/5 hover:bg-black/5 transition-colors">
               <input type="radio" value="Prepaid" {...register('paymentType')} className="accent-olive" />
@@ -149,7 +156,6 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
           {errors.paymentType && <p className="text-red-500 text-xs mt-1">{errors.paymentType.message}</p>}
         </div>
       </div>
-
 
       <AnimatePresence>
         {paymentType === 'Prepaid' && country.bankDetails && (
