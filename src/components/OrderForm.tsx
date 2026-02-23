@@ -79,7 +79,6 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
             paymentType: data.paymentType, // Database column နာမည်နဲ့ ကိုက်အောင် စစ်ပါ
             notes: data.notes || null,
             receiptUrl: receiptPreview || null,
-            country_code: countryCode // ဘယ်နိုင်ငံက မှာလဲဆိုတာပါ သိမ်းချင်ရင် ထည့်နိုင်ပါတယ်
           }
         ]);
 
