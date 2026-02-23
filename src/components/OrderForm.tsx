@@ -5,7 +5,8 @@ import * as z from 'zod';
 import { motion, AnimatePresence } from 'motion/react';
 import { COUNTRIES, CountryCode } from '../constants';
 import { Upload, CheckCircle2, Loader2 } from 'lucide-react';
-// ၁။ Supabase client ကို import လုပ်ပါ (လမ်းကြောင်း မှန်အောင် စစ်ပေးပါ)
+
+// *** MANUALLY CHECK: ဒီလမ်းကြောင်းက သင့်ရဲ့ supabase.ts တည်ရှိရာနေရာ ဖြစ်ရပါမယ် ***
 import { supabase } from '../lib/supabase'; 
 
 const orderSchema = z.object({
@@ -37,7 +38,6 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
     register,
     handleSubmit,
     watch,
-    setValue,
     formState: { errors },
   } = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -61,13 +61,42 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
     }
   };
 
-  // ၂။ ပြင်ဆင်ထားသော onSubmit function
   const onSubmit = async (data: OrderFormData) => {
     setIsSubmitting(true);
     setSubmitError(null);
     
     try {
-      // API route အစား Supabase ထဲ တိုက်ရိုက် Insert လုပ်မယ်
+      let finalReceiptUrl = null;
+
+      // ၁။ ပုံရှိလျှင် Storage ထဲ အရင်ပို့မည်
+      if (receiptPreview && data.paymentType === 'Prepaid') {
+        const base64Data = receiptPreview.split(',')[1];
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const fileBlob = new Blob([byteArray], { type: 'image/jpeg' });
+
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+
+        const { error: uploadError } = await supabase
+          .storage
+          .from('receipts')
+          .upload(fileName, fileBlob);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase
+          .storage
+          .from('receipts')
+          .getPublicUrl(fileName);
+        
+        finalReceiptUrl = publicUrl;
+      }
+
+      // ၂။ Database ထဲတွင် Order အချက်အလက်နှင့် ပုံ Link သိမ်းမည်
       const { error } = await supabase
         .from('orders')
         .insert([
@@ -76,18 +105,17 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
             phone: data.phone,
             address: data.address,
             qty: data.qty,
-            paymentType: data.paymentType, // Database column နာမည်နဲ့ ကိုက်အောင် စစ်ပါ
+            paymentType: data.paymentType, // Schema နှင့် ကိုက်ညီရမည်
             notes: data.notes || null,
-            receiptUrl: receiptPreview || null,
+            receiptUrl: finalReceiptUrl,
           }
         ]);
 
       if (error) throw error;
-      
       onSuccess("SUCCESS");
     } catch (error: any) {
-      console.error('Order submission failed:', error);
-      setSubmitError(`Order တင်ခြင်း မအောင်မြင်ပါ။ (${error.message || "Database connection error"})`);
+      console.error('Submission error:', error);
+      setSubmitError(`အမှားအယွင်းရှိပါသည်: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -95,7 +123,6 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* အောက်က UI ပိုင်းတွေက အရင်အတိုင်းပဲမို့လို့ မပြောင်းလဲပါဘူး */}
       {Object.keys(errors).length > 0 && (
         <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
           <p className="text-xs text-red-600 font-medium">ကျေးဇူးပြု၍ လိုအပ်သော အချက်အလက်များကို မှန်ကန်စွာ ဖြည့်စွက်ပေးပါရန်။</p>
@@ -108,7 +135,6 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
         </div>
       )}
       
-      {/* ... (ကျန်တဲ့ UI code တွေက အတူတူပါပဲ) ... */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-black/50 mb-2">Full Name</label>
