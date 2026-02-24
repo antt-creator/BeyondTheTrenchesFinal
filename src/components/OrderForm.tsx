@@ -59,7 +59,6 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
 👤 *Name:* ${data.name}
 📞 *Phone:* ${data.phone}
 🏠 *Address:* ${data.address}
-🌍 *Country:* ${country.name}
 📚 *Qty:* ${data.qty}
 💰 *Payment:* ${data.paymentType === 'COD' ? 'အိမ်ရောက်ငွေချေ' : 'ကြိုတင်ငွေချေ'}
 📝 *Notes:* ${data.notes || 'မရှိပါ'}
