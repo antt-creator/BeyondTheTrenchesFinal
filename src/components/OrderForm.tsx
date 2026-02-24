@@ -6,12 +6,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { COUNTRIES, CountryCode } from '../constants';
 import { Upload, CheckCircle2, Loader2 } from 'lucide-react';
 
+// OrderForm.tsx ထဲမှာ...
+
+const TELEGRAM_BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN; 
+const TELEGRAM_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID;
+
 // *** MANUALLY CHECK: ဒီလမ်းကြောင်းက သင့်ရဲ့ supabase.ts တည်ရှိရာနေရာ ဖြစ်ရပါမယ် ***
 import { supabase } from '../lib/supabase'; 
-
-// --- Telegram Config (ဒီနေရာမှာ သင့် Bot အချက်အလက် ထည့်ပါ) ---
-const TELEGRAM_BOT_TOKEN = "8723647379:AAEFgtug1nFif6gykSRiWmHJIWMDa2fq56A"; 
-const TELEGRAM_CHAT_ID = "1926154022";
 
 const orderSchema = z.object({
   name: z.string().min(2, 'Name is too short'),
