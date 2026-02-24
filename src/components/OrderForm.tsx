@@ -9,6 +9,10 @@ import { Upload, CheckCircle2, Loader2 } from 'lucide-react';
 // *** MANUALLY CHECK: ဒီလမ်းကြောင်းက သင့်ရဲ့ supabase.ts တည်ရှိရာနေရာ ဖြစ်ရပါမယ် ***
 import { supabase } from '../lib/supabase'; 
 
+// --- Telegram Config (ဒီနေရာမှာ သင့် Bot အချက်အလက် ထည့်ပါ) ---
+const TELEGRAM_BOT_TOKEN = "8723647379:AAEFgtug1nFif6gykSRiWmHJIWMDa2fq56A"; 
+const TELEGRAM_CHAT_ID = "1926154022";
+
 const orderSchema = z.object({
   name: z.string().min(2, 'Name is too short'),
   phone: z.string().min(8, 'Invalid phone number'),
@@ -49,6 +53,34 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
   });
 
   const paymentType = watch('paymentType');
+
+  // --- Telegram ပို့ဆောင်မည့် Function ---
+  const sendTelegramNotification = async (data: OrderFormData, receiptUrl: string | null) => {
+    const message = `
+📢 *New Order Received!*
+👤 *Name:* ${data.name}
+📞 *Phone:* ${data.phone}
+🏠 *Address:* ${data.address}
+📚 *Qty:* ${data.qty}
+💰 *Payment:* ${data.paymentType === 'COD' ? 'အိမ်ရောက်ငွေချေ' : 'ကြိုတင်ငွေချေ'}
+📝 *Notes:* ${data.notes || 'မရှိပါ'}
+🖼️ *Receipt:* ${receiptUrl ? `[View Receipt](${receiptUrl})` : 'မရှိပါ'}
+    `;
+
+    try {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          text: message,
+          parse_mode: 'Markdown',
+        }),
+      });
+    } catch (err) {
+      console.error('Telegram Notification Error:', err);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -105,13 +137,17 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
             phone: data.phone,
             address: data.address,
             qty: data.qty,
-            paymentType: data.paymentType, // Schema နှင့် ကိုက်ညီရမည်
+            paymentType: data.paymentType,
             notes: data.notes || null,
             receiptUrl: finalReceiptUrl,
           }
         ]);
 
       if (error) throw error;
+
+      // ၃။ Telegram သို့ အကြောင်းကြားစာပို့မည်
+      await sendTelegramNotification(data, finalReceiptUrl);
+
       onSuccess("SUCCESS");
     } catch (error: any) {
       console.error('Submission error:', error);
@@ -123,6 +159,8 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* ... (ကျန်ရှိသည့် Form UI အပိုင်းများ - အပြောင်းအလဲမရှိပါ) ... */}
+      {/* ... */}
       {Object.keys(errors).length > 0 && (
         <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
           <p className="text-xs text-red-600 font-medium">ကျေးဇူးပြု၍ လိုအပ်သော အချက်အလက်များကို မှန်ကန်စွာ ဖြည့်စွက်ပေးပါရန်။</p>
