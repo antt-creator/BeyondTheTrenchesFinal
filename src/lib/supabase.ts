@@ -1,15 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Vercel ရဲ့ Environment Variables ကနေ လှမ်းဖတ်ခိုင်းခြင်း
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Missing Supabase environment variables. Database features will not work.');
-}
-
-// Initialize with dummy values if missing to prevent constructor crash, 
-// but the actual calls will fail gracefully later.
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co', 
-  supabaseAnonKey || 'placeholder'
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
