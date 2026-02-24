@@ -5,14 +5,11 @@ import * as z from 'zod';
 import { motion, AnimatePresence } from 'motion/react';
 import { COUNTRIES, CountryCode } from '../constants';
 import { Upload, CheckCircle2, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabase'; 
 
-// OrderForm.tsx ထဲမှာ...
-
+// Environment Variables လှမ်းယူခြင်း
 const TELEGRAM_BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN; 
 const TELEGRAM_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID;
-
-// *** MANUALLY CHECK: ဒီလမ်းကြောင်းက သင့်ရဲ့ supabase.ts တည်ရှိရာနေရာ ဖြစ်ရပါမယ် ***
-import { supabase } from '../lib/supabase'; 
 
 const orderSchema = z.object({
   name: z.string().min(2, 'Name is too short'),
@@ -55,13 +52,14 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
 
   const paymentType = watch('paymentType');
 
-  // --- Telegram ပို့ဆောင်မည့် Function ---
+  // --- Telegram ပို့ဆောင်မည့် Function (သန့်ရှင်းအောင် တစ်နေရာတည်းတွင် ထားရှိသည်) ---
   const sendTelegramNotification = async (data: OrderFormData, receiptUrl: string | null) => {
     const message = `
 📢 *New Order Received!*
 👤 *Name:* ${data.name}
 📞 *Phone:* ${data.phone}
 🏠 *Address:* ${data.address}
+🌍 *Country:* ${country.name}
 📚 *Qty:* ${data.qty}
 💰 *Payment:* ${data.paymentType === 'COD' ? 'အိမ်ရောက်ငွေချေ' : 'ကြိုတင်ငွေချေ'}
 📝 *Notes:* ${data.notes || 'မရှိပါ'}
@@ -101,7 +99,7 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
     try {
       let finalReceiptUrl = null;
 
-      // ၁။ ပုံရှိလျှင် Storage ထဲ အရင်ပို့မည်
+      // ၁။ ပုံရှိလျှင် Supabase Storage ထဲ အရင်ပို့မည်
       if (receiptPreview && data.paymentType === 'Prepaid') {
         const base64Data = receiptPreview.split(',')[1];
         const byteCharacters = atob(base64Data);
@@ -129,7 +127,7 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
         finalReceiptUrl = publicUrl;
       }
 
-      // ၂။ Database ထဲတွင် Order အချက်အလက်နှင့် ပုံ Link သိမ်းမည်
+      // ၂။ Database ထဲတွင် Order အချက်အလက် သိမ်းမည်
       const { error } = await supabase
         .from('orders')
         .insert([
@@ -146,7 +144,7 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
 
       if (error) throw error;
 
-      // ၃။ Telegram သို့ အကြောင်းကြားစာပို့မည်
+      // ၃။ Telegram သို့ အကြောင်းကြားစာပို့မည် (အောင်မြင်မှ ပို့သည်)
       await sendTelegramNotification(data, finalReceiptUrl);
 
       onSuccess("SUCCESS");
@@ -160,8 +158,6 @@ export default function OrderForm({ countryCode, onSuccess }: OrderFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* ... (ကျန်ရှိသည့် Form UI အပိုင်းများ - အပြောင်းအလဲမရှိပါ) ... */}
-      {/* ... */}
       {Object.keys(errors).length > 0 && (
         <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
           <p className="text-xs text-red-600 font-medium">ကျေးဇူးပြု၍ လိုအပ်သော အချက်အလက်များကို မှန်ကန်စွာ ဖြည့်စွက်ပေးပါရန်။</p>
